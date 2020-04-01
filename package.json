@@ -1,0 +1,19 @@
+{
+  "name": "webvtt-translator",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node ./index.js"
+  },
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "csv": "^5.3.2",
+    "deepl-translator": "^1.2.1",
+    "google-translate": "^3.0.0",
+    "node-deepl": "^1.0.0",
+    "node-webvtt": "^1.8.0"
+  }
+}
