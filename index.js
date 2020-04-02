@@ -1,25 +1,30 @@
-const { parse, compile, segment, hls } = require('node-webvtt');
-const fs = require('fs');
-const csv = require('csv');
+const { parse, compile, segment, hls } = require('node-webvtt')
+const fs = require('fs')
+const path = require('path')
+const csv = require('csv')
 
+const inputfile = 'input.csv'
+const outputfile = 'output.csv'
+
+const inputdir = './input'
+const outputdir = './output'
 
 //変換表の配列を格納
-let TranslatorData = new Map();
+let TranslatorData = new Map()
+let TranslatorDataOut = new Map()
 
 const csvParser = csv.parse((error, data) => {
     //ループしながら１行ずつ処理
     data.forEach((element, index, array) => {
-        TranslatorData.set(element[0],element[1]);
+        TranslatorData.set(element[0],element[1])
     })
-    console.log('処理データ');
-    console.log(TranslatorData);
+    console.log('処理データ')
+    console.log(TranslatorData)
 })
 
-//読み込みと処理を実行
-fs.createReadStream('input.csv').pipe(csvParser);
 
 //キャプションデータの抽出
-function caption (val){
+const caption = function (val){
   const v =JSON.parse(val)
   console.log(v.data)
   const webvtt = decodeURI(v.data)
@@ -27,7 +32,7 @@ function caption (val){
 
   const parsed = parse(webvtt, { meta: true })
   const data = json_text_export(JSON.stringify(parsed))
-  const compiled = compile(data);
+  const compiled = compile(data)
   const caption = JSON.stringify({data:encodeURI(compiled).replace(/\%0A/g, '%0D%0A')+'%0D%0A'})
   const ret = globalProvideDataGen('caption', caption)
   //console.log(ret)
@@ -35,12 +40,12 @@ function caption (val){
 }
 
 //jsのデータを作成
-function globalProvideDataGen(key, val){
+const globalProvideDataGen = function (key, val){
   return `window.globalProvideData('${key}', '${val}');`
 }
 
 //翻訳対象の抽出
-function json_text_export(val){
+const json_text_export = function (val){
   return JSON.parse(val, (key, value) => {
     let ret = value
     
@@ -53,22 +58,21 @@ function json_text_export(val){
       } else {
         ret = TranslatorData.get(v)
         console.log('TranslatorData:',v,'=>',ret)
+        TranslatorDataOut.set(v,ret)
       }
     }
-    return ret;     // 変更されていないプロパティの値を返す。
+    return ret     // 変更されていないプロパティの値を返す。
   })
 }
 
-
-function data (key,val){
+const data = function (key,val){
   const v = JSON.stringify(json_text_export(val)).replace(/\\/g, '\\\\').replace(/'/g, "\\'")
-//.replace(/\\\\/g, '\\\\\\\\').replace(/\\"/g, '\\\\"').replace(/\\n/g, '\\\\n')
   //console.log('Translator_sub:',v)
   const ret = globalProvideDataGen(key, v)
   return ret
 }
 
-function paths (key,val){
+const paths = function (key,val){
   const u = JSON.parse(val, (key, value) => {
     let ret = value
     if(value.nodeType ){
@@ -88,11 +92,12 @@ function paths (key,val){
           } else {
             nt.push(TranslatorData.get(t))
             console.log('TranslatorData:',t,'=>',TranslatorData.get(t))
+            TranslatorDataOut.set(t,TranslatorData.get(t))
           }
         }
         ret.children = nt;
         console.log('value.x:'+value.x)
-        if(value.x) {value.x = value.x.split(' ',1).join(' ')}
+        if(value.x) {value.x = value.x.split(' ',1).join(' ')}//英文前提で文字幅を作ってるので削除する
         console.log('value.x:'+value.x)
       } else{
         console.log('nodeType:',value.nodeType,value)
@@ -101,7 +106,6 @@ function paths (key,val){
     return ret;     // 変更されていないプロパティの値を返す。
   })
   const v = JSON.stringify(u).replace(/\\/g, '\\\\').replace(/'/g, "\\'")
-//.replace(/\\\\/g, '\\\\\\\\').replace(/\\"/g, '\\\\"').replace(/\\n/g, '\\\\n')
   //console.log('Translator_sub:',v)
   const ret = globalProvideDataGen(key, v)
   return ret
@@ -123,29 +127,77 @@ const globalProvideData = function (path) {
   }
 }
 
-csvParser.on('end', () => {
-  console.log('TranslatorData loaded')
+//ファイル一覧取得
+const dirwalk = function(p, fileCallback, errCallback) {
+    fs.readdir(p, function(err, files) {
+        if (err) {
+            errCallback(err)
+            return
+        }
 
-  // ./input配下を読み込み
-  const allDirents = fs.readdirSync('./input', { withFileTypes: true })
-  const fileNames = allDirents.filter(dirent => dirent.isFile() && /.*\.js$/.test(dirent.name)).map(({ name }) => name);
-  console.log(fileNames);
+        files.forEach(function(f) {
+            var fp = path.join(p, f) // to full-path
+            if(fs.statSync(fp).isDirectory()) {
+                dirwalk(fp, fileCallback) // ディレクトリなら再帰
+            } else {
+                if( /.*\.js$/.test(fp) ) {
+                  fileCallback(path.relative(inputdir, fp)) // ファイルならコールバックで通知
+                }
+            }
+        })
+    })
+}
 
-  // jsファイル分実行
-  for(let i in fileNames) {
-    console.log(fileNames[i]);
-    const window = {}
-    let targetfunc = fs.readFileSync('./input/'+fileNames[i], {encoding: 'utf8'})
-    window.globalProvideData =globalProvideData('./output/'+fileNames[i])
-    console.log('------------')
-    eval(targetfunc)
-    console.log('------------')
-  }
+function main () {
+
+  dirwalk(inputdir, function(filepath) {
+    console.log(filepath, path.dirname(path.join(inputdir, filepath)) )
+    translator(filepath)
+  }, function(err) {
+    console.log("Receive err:" + err) // エラー受信
+  })
 
   //TranslatorDataの保存
   csv.stringify(Array.from(TranslatorData),(error,output)=>{
-      fs.writeFile('out.csv',output,(error)=>{
-          console.log('TranslatorDataデータをCSV出力しました。');
+      fs.writeFile(outputfile,output,(error)=>{
+          console.log('TranslatorDataデータをCSV出力しました。')
+
+          //TranslatorDataの保存
+          csv.stringify(Array.from(TranslatorDataOut),(error,output)=>{
+              fs.writeFile('TranslatorDataOut.csv',output,(error)=>{
+                  console.log('TranslatorDataOutデータをCSV出力しました。')
+                  process.exit(0)
+              })
+          })
       })
   })
-});
+
+}
+
+const translator = function (filepath){
+    const window = {}
+    let targetfunc = fs.readFileSync(path.join(inputdir, filepath), {encoding: 'utf8'})
+    fs.mkdirSync(path.dirname(path.join(outputdir, filepath)), { recursive: true })
+    window.globalProvideData =globalProvideData(path.join(outputdir, filepath))
+    console.log('------------')
+    // jsファイル分実行
+    eval(targetfunc)
+    console.log('------------')
+}
+
+
+try {
+  fs.statSync(inputfile);
+  //読み込みと処理を実行
+  fs.createReadStream(inputfile).pipe(csvParser);
+  csvParser.on('end', () => {
+    console.log('TranslatorData loaded')
+    main()
+  })
+} catch (error) {
+  if (error.code === 'ENOENT') {
+    main()
+  }
+}
+
+
