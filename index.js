@@ -3,6 +3,7 @@ const fs = require('fs')
 const path = require('path')
 const csv = require('csv')
 
+const dicfile = 'dic.csv'
 const inputfile = 'input.csv'
 const outputfile = 'output.csv'
 
@@ -13,15 +14,26 @@ const outputdir = './output'
 let TranslatorData = new Map()
 let TranslatorDataOut = new Map()
 
+let PreTranslatorData = []
+
 const csvParser = csv.parse((error, data) => {
     //ループしながら１行ずつ処理
     data.forEach((element, index, array) => {
         TranslatorData.set(element[0],element[1])
     })
-    console.log('処理データ')
+    console.log('文章変換データ')
     console.log(TranslatorData)
 })
 
+
+const csvParserPreTranslatorData = csv.parse((error, data) => {
+    //ループしながら１行ずつ処理
+    data.forEach((element, index, array) => {
+        PreTranslatorData.push([new RegExp(element[0],'g'),element[1]])
+    })
+    console.log('単語データ')
+    console.log(PreTranslatorData)
+})
 
 //キャプションデータの抽出
 const caption = function (val){
@@ -53,8 +65,13 @@ const json_text_export = function (val){
     if(['Text','text','altText','lmstext','description','title'].indexOf(key) >= 0){
       const v = value.trim()
       if(!TranslatorData.has(v)){
-        TranslatorData.set(v,v)
-        console.log('add TranslatorData:',v)
+        let w = v
+        for(let atob in PreTranslatorData){
+          w = w.replace(PreTranslatorData[atob][0], PreTranslatorData[atob][1])
+          //if(v!=w) console.log('PreTranslatorData:',v,w)
+        }
+        TranslatorData.set(v,w)
+        console.log('add TranslatorData:',v,w)
       } else {
         ret = TranslatorData.get(v)
         console.log('TranslatorData:',v,'=>',ret)
@@ -129,23 +146,24 @@ const globalProvideData = function (path) {
 
 //ファイル一覧取得
 const dirwalk = function(p, fileCallback, errCallback) {
-    fs.readdir(p, function(err, files) {
-        if (err) {
-            errCallback(err)
-            return
-        }
 
-        files.forEach(function(f) {
-            var fp = path.join(p, f) // to full-path
-            if(fs.statSync(fp).isDirectory()) {
-                dirwalk(fp, fileCallback) // ディレクトリなら再帰
-            } else {
-                if( /.*\.js$/.test(fp) ) {
-                  fileCallback(path.relative(inputdir, fp)) // ファイルならコールバックで通知
-                }
+  try {
+    const files = fs.readdirSync(p);
+    for(let i in files){
+      const f = files[i]
+        var fp = path.join(p, f) // to full-path
+        if(fs.statSync(fp).isDirectory()) {
+            dirwalk(fp, fileCallback) // ディレクトリなら再帰
+        } else {
+            if( /.*\.js$/.test(fp) ) {
+              fileCallback(path.relative(inputdir, fp)) // ファイルならコールバックで通知
             }
-        })
-    })
+        }
+    }
+  } catch (error) {
+    errCallback(error)
+    return
+  }
 }
 
 function main () {
@@ -186,18 +204,33 @@ const translator = function (filepath){
 }
 
 
+
 try {
-  fs.statSync(inputfile);
+  fs.statSync(dicfile);
   //読み込みと処理を実行
-  fs.createReadStream(inputfile).pipe(csvParser);
-  csvParser.on('end', () => {
-    console.log('TranslatorData loaded')
-    main()
+  fs.createReadStream(dicfile).pipe(csvParserPreTranslatorData);
+  csvParserPreTranslatorData.on('end', () => {
+    console.log('PreTranslatorData loaded')
+    try {
+      fs.statSync(inputfile);
+      //読み込みと処理を実行
+      fs.createReadStream(inputfile).pipe(csvParser);
+      csvParser.on('end', () => {
+        console.log('TranslatorData loaded')
+        main()
+      })
+    } catch (error) {
+      if (error.code === 'ENOENT') {
+        main()
+      }
+    }
   })
 } catch (error) {
   if (error.code === 'ENOENT') {
-    main()
   }
 }
+
+
+
 
 
