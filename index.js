@@ -21,8 +21,8 @@ const csvParser = csv.parse((error, data) => {
     data.forEach((element, index, array) => {
         TranslatorData.set(element[0],element[1])
     })
-    console.log('文章変換データ')
-    console.log(TranslatorData)
+    // console.log('文章変換データ')
+    // console.log(TranslatorData)
 })
 
 
@@ -31,8 +31,8 @@ const csvParserPreTranslatorData = csv.parse((error, data) => {
     data.forEach((element, index, array) => {
         PreTranslatorData.push([new RegExp(element[0],'g'),element[1]])
     })
-    console.log('単語データ')
-    console.log(PreTranslatorData)
+    // console.log('単語データ')
+    // console.log(PreTranslatorData)
 })
 
 //キャプションデータの抽出
@@ -71,10 +71,10 @@ const json_text_export = function (val){
           //if(v!=w) console.log('PreTranslatorData:',v,w)
         }
         TranslatorData.set(v,w)
-        console.log('add TranslatorData:',v,w)
+        console.log(key+' add TranslatorData:',v,'=>',w)
       } else {
         ret = TranslatorData.get(v)
-        console.log('TranslatorData:',v,'=>',ret)
+        console.log(key+' TranslatorData:',v,'=>',ret)
         TranslatorDataOut.set(v,ret)
       }
     }
@@ -94,6 +94,13 @@ const paths = function (key,val){
     let ret = value
     if(value.nodeType ){
       if(value.nodeType == 'image' ){
+      } else if(value.nodeType == 'filter' ){
+      } else if(value.nodeType == 'reComposite' ){
+      } else if(value.nodeType == 'reGaussianBlur' ){
+      } else if(value.nodeType == 'reFlood' ){
+      } else if(value.nodeType == 'defs' ){
+      } else if(value.nodeType == 'linearGradient' ){
+      } else if(value.nodeType == 'stop' ){
       } else if(value.nodeType == 'path' ){
       } else if(value.nodeType == 'use' ){
       } else if(value.nodeType == 'text' ){
@@ -105,10 +112,10 @@ const paths = function (key,val){
           const t = value.children[i].trim()
           if(!TranslatorData.has(t)){
             TranslatorData.set(t,t)
-            console.log('add TranslatorData:',t)
+            console.log('tspan add TranslatorData:',t)
           } else {
             nt.push(TranslatorData.get(t))
-            console.log('TranslatorData:',t,'=>',TranslatorData.get(t))
+            console.log('tspan TranslatorData:',t,'=>',TranslatorData.get(t))
             TranslatorDataOut.set(t,TranslatorData.get(t))
           }
         }
