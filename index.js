@@ -29,10 +29,10 @@ const csvParser = csv.parse((error, data) => {
 const csvParserPreTranslatorData = csv.parse((error, data) => {
     //ループしながら１行ずつ処理
     data.forEach((element, index, array) => {
-        PreTranslatorData.push([new RegExp(element[0],'g'),element[1]])
+        PreTranslatorData.push([new RegExp(element[0],'gim'),element[1]])
     })
-    // console.log('単語データ')
-    // console.log(PreTranslatorData)
+    console.log('単語データ')
+    console.log(PreTranslatorData)
 })
 
 //キャプションデータの抽出
@@ -62,19 +62,21 @@ const json_text_export = function (val){
     let ret = value
     
     //console.log(key); // 現在のプロパティ名を出力する。最後は ""。
-    if(['Text','text','altText','lmstext','description','title'].indexOf(key) >= 0){
+    //if(['Text','text','altText','lmstext','description','title'].indexOf(key) >= 0){
+    if(['Text','text','lmstext','description','title'].indexOf(key) >= 0){
       const v = value.trim()
       if(!TranslatorData.has(v)){
         let w = v
         for(let atob in PreTranslatorData){
+          let wold = w
           w = w.replace(PreTranslatorData[atob][0], PreTranslatorData[atob][1])
-          //if(v!=w) console.log('PreTranslatorData:',v,w)
+          if(wold!=w) console.log('mod PreTranslatorData:',v,w)
         }
         TranslatorData.set(v,w)
         console.log(key+' add TranslatorData:',v,'=>',w)
       } else {
         ret = TranslatorData.get(v)
-        console.log(key+' TranslatorData:',v,'=>',ret)
+        console.log(key+' mod TranslatorData:',v,'=>',ret)
         TranslatorDataOut.set(v,ret)
       }
     }
@@ -94,10 +96,11 @@ const paths = function (key,val){
     let ret = value
     if(value.nodeType ){
       if(value.nodeType == 'image' ){
+      } else if(value.nodeType == 'line' ){
       } else if(value.nodeType == 'filter' ){
-      } else if(value.nodeType == 'reComposite' ){
-      } else if(value.nodeType == 'reGaussianBlur' ){
-      } else if(value.nodeType == 'reFlood' ){
+      } else if(value.nodeType == 'feComposite' ){
+      } else if(value.nodeType == 'feGaussianBlur' ){
+      } else if(value.nodeType == 'feFlood' ){
       } else if(value.nodeType == 'defs' ){
       } else if(value.nodeType == 'linearGradient' ){
       } else if(value.nodeType == 'stop' ){
@@ -108,21 +111,37 @@ const paths = function (key,val){
       } else if(value.nodeType == 'tspan' ){
         //console.log(value.children,value.x)
         const nt = []
+        let x0 = 0
+        let x1 = 0
         for(let i in value.children) {
           const t = value.children[i].trim()
           if(!TranslatorData.has(t)){
-            TranslatorData.set(t,t)
+            let w = t
+            for(let atob in PreTranslatorData){
+              let wold = w
+              w = w.replace(PreTranslatorData[atob][0], PreTranslatorData[atob][1])
+              if(wold!=w) console.log('mod PreTranslatorData:',t,w)
+            }
+            TranslatorData.set(t,w)
             console.log('tspan add TranslatorData:',t)
           } else {
             nt.push(TranslatorData.get(t))
-            console.log('tspan TranslatorData:',t,'=>',TranslatorData.get(t))
+            console.log('tspan mod TranslatorData:',t,'=>',TranslatorData.get(t))
+            x0 =+ t.length
+            x1 =+ TranslatorData.get(t).length * 2
             TranslatorDataOut.set(t,TranslatorData.get(t))
           }
         }
         ret.children = nt;
         console.log('value.x:'+value.x)
-        if(value.x) {value.x = value.x.split(' ',1).join(' ')}//英文前提で文字幅を作ってるので削除する
-        console.log('value.x:'+value.x)
+        if(value.x) {
+          const x = value.x.split(' ',1).join(' ') //英文前提で文字幅を作ってるので削除する
+          //const xd = x1 - x0
+          //value.x = (x - xd * 10 >= 0 )? x - xd * 10 : 0 //開始位置が英文前提でカタカナが多いと入らないので左に寄せる
+          
+          value.x = x
+        }
+        console.log('value.x:"'+value.x+'"')
       } else{
         console.log('nodeType:',value.nodeType,value)
       }
@@ -229,11 +248,15 @@ try {
     } catch (error) {
       if (error.code === 'ENOENT') {
         main()
+      }else{
+        console.error(error)
       }
     }
   })
 } catch (error) {
   if (error.code === 'ENOENT') {
+  }else{
+        console.error(error)
   }
 }
 
