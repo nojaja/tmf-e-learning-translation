@@ -94,7 +94,7 @@ const data = function (key,val){
 const paths = function (key,val){
   const u = JSON.parse(val, (key, value) => {
     let ret = value
-    if(value.nodeType ){
+    if(value && value.nodeType ){
       if(value.nodeType == 'image' ){
       } else if(value.nodeType == 'line' ){
       } else if(value.nodeType == 'filter' ){
@@ -123,17 +123,17 @@ const paths = function (key,val){
               if(wold!=w) console.log('mod PreTranslatorData:',t,w)
             }
             TranslatorData.set(t,w)
-            console.log('tspan add TranslatorData:',t)
+            //console.log('tspan add TranslatorData:',t)
           } else {
             nt.push(TranslatorData.get(t))
-            console.log('tspan mod TranslatorData:',t,'=>',TranslatorData.get(t))
+            //console.log('tspan mod TranslatorData:',t,'=>',TranslatorData.get(t))
             x0 =+ t.length
             x1 =+ TranslatorData.get(t).length * 2
             TranslatorDataOut.set(t,TranslatorData.get(t))
           }
         }
         ret.children = nt;
-        console.log('value.x:'+value.x)
+        //console.log('value.x:'+value.x)
         if(value.x) {
           const x = value.x.split(' ',1).join(' ') //英文前提で文字幅を作ってるので削除する
           //const xd = x1 - x0
@@ -141,9 +141,16 @@ const paths = function (key,val){
           
           value.x = x
         }
-        console.log('value.x:"'+value.x+'"')
+        //console.log('value.x:"'+value.x+'"')
       } else{
-        console.log('nodeType:',value.nodeType,value)
+        //console.log('nodeType:',value.nodeType,value)
+      }
+    } else {
+      if(value===null) {
+        console.log('paths drop element key:' + key + ' value:' + value )
+      } else {
+        //console.log('paths error key:' + key + ' value:' + value )
+        //console.log('paths error key:' + key + ' value.nodeType:' + value.nodeType )
       }
     }
     return ret;     // 変更されていないプロパティの値を返す。
@@ -187,7 +194,12 @@ const dirwalk = function(p, fileCallback, errCallback) {
         }
     }
   } catch (error) {
-    errCallback(error)
+    
+    if(errCallback){
+      errCallback(error)
+    } else {
+      console.log("dirwalk err:" + error, p) // エラー受信
+    }
     return
   }
 }
