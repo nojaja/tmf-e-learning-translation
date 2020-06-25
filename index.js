@@ -109,24 +109,25 @@ const paths = function (key,val){
       } else if(value.nodeType == 'text' ){
       } else if(value.nodeType == 'g' ){
       } else if(value.nodeType == 'tspan' ){
-        //console.log(value.children,value.x)
+        //console.log('paths tspan pattern:',value.children,value.x)
         const nt = []
         let x0 = 0
         let x1 = 0
         for(let i in value.children) {
           const t = value.children[i].trim()
           if(!TranslatorData.has(t)){
+            console.log('未登録文章:',t)
             let w = t
             for(let atob in PreTranslatorData){
               let wold = w
               w = w.replace(PreTranslatorData[atob][0], PreTranslatorData[atob][1])
-              if(wold!=w) console.log('mod PreTranslatorData:',t,w)
+              if(wold!=w) console.log('単語変換 PreTranslatorData:',t,w)
             }
             TranslatorData.set(t,w)
-            //console.log('tspan add TranslatorData:',t)
+            console.log('文章登録 tspan add TranslatorData:',t)
           } else {
             nt.push(TranslatorData.get(t))
-            //console.log('tspan mod TranslatorData:',t,'=>',TranslatorData.get(t))
+            console.log('文章翻訳 tspan mod TranslatorData:',t,'=>',TranslatorData.get(t))
             x0 =+ t.length
             x1 =+ TranslatorData.get(t).length * 2
             TranslatorDataOut.set(t,TranslatorData.get(t))
@@ -147,7 +148,7 @@ const paths = function (key,val){
       }
     } else {
       if(value===null) {
-        console.log('paths drop element key:' + key + ' value:' + value )
+        console.log('drop element key:' + key + ' value:' + value )
       } else {
         //console.log('paths error key:' + key + ' value:' + value )
         //console.log('paths error key:' + key + ' value.nodeType:' + value.nodeType )
